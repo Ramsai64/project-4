@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>APTIPLE Interactive Quiz</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      height: 100vh;
+      flex-direction: column;
+      transition: background 0.3s, color 0.3s;
+    }
+    .dark-mode {
+      background: #121212;
+      color: #ffffff;
+    }
+    #sidebar {
+      width: 100%;
+      height: 60px;
+      background: #f4f4f4;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .dark-mode #sidebar {
+      background: #1e1e1e;
+    }
+    #sidebar button {
+      margin: 5px;
+      padding: 12px 18px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    #sidebar button.active {
+      background: #2196F3;
+      color: white;
+    }
+    #sidebar button.answered {
+      background: #4caf50;
+      color: white;
+    }
+    #main {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    #question-number {
+      font-weight: bold;
+      font-size: 22px;
+    }
+    #question-text {
+      font-size: 28px;
+      margin: 20px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    #result {
+      display: none;
+    }
+    .dark-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      padding: 5px 10px;
+      background: #333;
+      color: #fff;
+      border-radius: 5px;
+    }
+    #pieChart {
+      width: 250px !important;
+      height: 250px !important;
+    }
+    #timer {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    #question-section {
+      margin-top: auto;
+    }
+    #next-btn {
+      font-size: 20px;
+      padding: 12px 24px;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    #next-btn:hover {
+      background: #45a049;
+    }
+    #next-btn:active {
+      background: #388e3c;
+    }
+  </style>
+</head>
+<body>
+  <div class="dark-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</div>
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="timer"></div>
+    <div id="question-section">
+      <h2 id="question-number"></h2>
+      <h3 id="question-text"></h3>
+      <div id="options"></div>
+      <button id="next-btn">Next</button>
+    </div>
+    <div id="result">
+      <h2>Quiz Completed</h2>
+      <p id="score-text"></p>
+      <canvas id="pieChart" width="250" height="250"></canvas>
+      <div id="review"></div>
+    </div>
+  </div>
+
+  <script>
+    const quizData = [
+        {
+  question: "A train running at the speed of 60 km/hr crosses a pole in 9 seconds. What is the length of the train?",
+  options: ["120 metres", "180 metres", "324 metres", "150 metres"],
+  answer: "150 metres",
+  explanation: `
+    <p>Speed of the train = 60 km/h.</p>
+    <p>To convert this to meters per second, use the conversion factor:</p>
+    <p><strong>60 km/h = 60 × 1000 / 3600 = 16.67 m/s</strong></p>
+    <p>The time taken to cross the pole = 9 seconds.</p>
+    <p>Now, using the formula:</p>
+    <p><strong>Length of Train = Speed × Time</strong></p>
+    <p><strong>Length of Train = 16.67 m/s × 9 seconds = 150 meters</strong></p>
+  `
+    },
+
+      {
+        question: "APT attacks are usually...",
+        options: ["Random", "Short-term", "Highly targeted", "Easily detected"],
+        answer: "Highly targeted",
+        explanation: "APT attacks are designed to target specific organizations or individuals."
+      },
+      {
+        question: "Which is a common APT goal?",
+        options: ["Spam users", "Gain root access", "Data exfiltration", "Launch ads"],
+        answer: "Data exfiltration",
+        explanation: "APT attackers aim to steal sensitive data without being detected."
+      },
+      {
+        question: "APT threats often involve...",
+        options: ["One-time attacks", "Fast spreading viruses", "Long-term infiltration", "Wi-Fi jamming"],
+        answer: "Long-term infiltration",
+        explanation: "APT campaigns are stealthy and long-lasting."
+      },
+      {
+        question: "Which industry is most targeted?",
+        options: ["Retail", "Gaming", "Defense", "Travel"],
+        answer: "Defense",
+        explanation: "Government and defense sectors are high-value targets."
+      },
+      {
+        question: "How do APTs often enter?",
+        options: ["User login", "Zero-day exploit", "Phone call", "Ad clicks"],
+        answer: "Zero-day exploit",
+        explanation: "Zero-day vulnerabilities are unknown flaws that APTs exploit."
+      },
+      {
+        question: "Which tool helps detect APTs?",
+        options: ["Firewall", "SIEM", "Word processor", "Load balancer"],
+        answer: "SIEM",
+        explanation: "SIEM tools collect and analyze security events."
+      },
+      {
+        question: "APT actors are usually...",
+        options: ["Teenagers", "Hacktivists", "Nation-state sponsored", "Social media trolls"],
+        answer: "Nation-state sponsored",
+        explanation: "APT campaigns are often state-sponsored operations."
+      },
+      {
+        question: "Final step of APT?",
+        options: ["Infection", "Persistence", "Data exfiltration", "Reconnaissance"],
+        answer: "Data exfiltration",
+        explanation: "The end goal of APTs is to extract data."
+      },
+      {
+        question: "Good defense against APT?",
+        options: ["Simple firewall", "No antivirus", "Layered security", "Turn off PC"],
+        answer: "Layered security",
+        explanation: "A multi-layered approach improves detection."
+      }
+    ];
+
+    let currentQuestion = 0;
+    let score = 0;
+    let answers = Array(quizData.length).fill(null);
+    let timeLeft = 10 * 60;
+
+    const sidebar = document.getElementById("sidebar");
+    const timer = document.getElementById("timer");
+    const questionNumber = document.getElementById("question-number");
+    const questionText = document.getElementById("question-text");
+    const optionsDiv = document.getElementById("options");
+    const nextBtn = document.getElementById("next-btn");
+    const resultDiv = document.getElementById("result");
+    const scoreText = document.getElementById("score-text");
+    const reviewDiv = document.getElementById("review");
+
+    quizData.forEach((q, i) => {
+      const btn = document.createElement("button");
+      btn.textContent = "Q" + (i + 1);
+      btn.onclick = () => loadQuestion(i);
+      sidebar.appendChild(btn);
+    });
+
+    function updateSidebar() {
+      const buttons = sidebar.querySelectorAll("button");
+      buttons.forEach((btn, i) => {
+        btn.classList.remove("active", "answered");
+        if (i === currentQuestion) btn.classList.add("active");
+        if (answers[i] !== null) btn.classList.add("answered");
+      });
+    }
+
+    function loadQuestion(index) {
+      currentQuestion = index;
+      const q = quizData[index];
+      questionNumber.textContent = `Question ${index + 1} of ${quizData.length}`;
+      questionText.textContent = q.question;
+      optionsDiv.innerHTML = "";
+      q.options.forEach(option => {
+        const label = document.createElement("label");
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "option";
+        radio.value = option;
+        if (answers[index] === option) radio.checked = true;
+        label.appendChild(radio);
+        label.append(" " + option);
+        optionsDiv.appendChild(label);
+      });
+      updateSidebar();
+    }
+
+    nextBtn.onclick = () => {
+      const selected = document.querySelector('input[name="option"]:checked');
+      if (!selected) return alert("Please select an option");
+      answers[currentQuestion] = selected.value;
+      if (currentQuestion < quizData.length - 1) {
+        loadQuestion(currentQuestion + 1);
+      } else {
+        endQuiz();
+      }
+    };
+
+    function endQuiz() {
+      clearInterval(timerInterval);
+      score = answers.reduce((acc, val, i) => val === quizData[i].answer ? acc + 1 : acc, 0);
+      localStorage.setItem("aptiple_score", score);
+      questionText.style.display = "none";
+      optionsDiv.style.display = "none";
+      nextBtn.style.display = "none";
+      questionNumber.style.display = "none";
+      resultDiv.style.display = "block";
+      scoreText.innerHTML = `You scored <strong>${score}</strong> out of <strong>${quizData.length}</strong>`;
+      showPieChart(score, quizData.length - score);
+      showAnswersReview();
+    }
+
+    function showPieChart(correct, wrong) {
+      const ctx = document.getElementById("pieChart").getContext("2d");
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['Correct', 'Wrong'],
+          datasets: [{
+            data: [correct, wrong],
+            backgroundColor: ['#4caf50', '#f44336']
+          }]
+        }
+      });
+    }
+
+    function showAnswersReview() {
+      reviewDiv.innerHTML = "";
+      quizData.forEach((q, i) => {
+        const div = document.createElement("div");
+        div.innerHTML = `<h4>Question ${i + 1}: ${q.question}</h4>
+          <p><strong>Your answer:</strong> ${answers[i] || "Not answered"}</p>
+          <p><strong>Correct answer:</strong> ${q.answer}</p>
+          <p><em>${q.explanation}</em></p>
+          <hr />`;
+        reviewDiv.appendChild(div);
+      });
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          endQuiz();
+        } else {
+          const min = Math.floor(timeLeft / 60);
+          const sec = timeLeft % 60;
+          timer.textContent = `Time Left: ${min}:${sec < 10 ? "0" + sec : sec}`;
+          timeLeft--;
+        }
+      }, 1000);
+    }
+
+    loadQuestion(0);
+    startTimer();
+  </script>
+</body>
+</html>
